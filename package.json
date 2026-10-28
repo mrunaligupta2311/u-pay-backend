@@ -14,6 +14,8 @@
   "license": "ISC",
   "packageManager": "pnpm@10.32.1",
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14",
+    "prisma": "^6.19.3",
     "supertest": "^7.3.1",
     "vitest": "^5.0.5"
   },

@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+enum OtpPurpose {
+  ENTRY_PIN_RESET_EMAIL
+  ENTRY_PIN_RESET_PHONE
+  TRANSACTION_PIN_RESET_EMAIL
+  TRANSACTION_PIN_RESET_PHONE
+  SIGNUP
+  LOGIN
+  PHONE_VERIFICATION
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum TransactionType {
+  UPI_PAYMENT
+  WALLET_CREDIT
+  WALLET_DEBIT
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+model User {
+  pinResetChallenges PinResetChallenge[]
+  id            String     @id @default(cuid())
+  fullName      String
+  phoneNumber   String     @unique
+  email         String?    @unique
+  status        UserStatus @default(ACTIVE)
+  phoneVerified Boolean    @default(false)
+  emailVerified Boolean    @default(false)
+
+  wallet        Wallet?
+  paymentPin    PaymentPin?
+  sessions      Session[]
+  otpRecords    OtpVerification[] @relation("OtpOwner")
+  sentTransactions Transaction[] @relation("TransactionSender")
+  receivedTransactions Transaction[] @relation("TransactionReceiver")
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([status])
+  entryPin             EntryPin?
+}
+
+model OtpVerification {
+  id          String     @id @default(cuid())
+  userId      String?
+  destination String
+  purpose     OtpPurpose
+  codeHash    String
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  attempts    Int        @default(0)
+
+  user        User?      @relation("OtpOwner", fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime   @default(now())
+
+  @@index([destination, purpose, createdAt])
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Decimal  @default(0) @db.Decimal(14, 2)
+  currency  String   @default("INR")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  recipientUpiId  String?
+  recipientName   String?
+  id                String            @id @default(cuid())
+  reference         String            @unique @default(cuid())
+  senderId          String?
+  receiverId        String?
+  type              TransactionType
+  status            TransactionStatus @default(PENDING)
+  amount            Decimal           @db.Decimal(14, 2)
+  currency          String            @default("INR")
+  note              String?
+  failureReason     String?
+  idempotencyKey    String?           @unique
+  completedAt       DateTime?
+
+  sender            User?             @relation("TransactionSender", fields: [senderId], references: [id], onDelete: Restrict)
+  receiver          User?             @relation("TransactionReceiver", fields: [receiverId], references: [id], onDelete: Restrict)
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([senderId, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+}
+
+model PaymentPin {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  pinHash      String
+  failedAttempts Int    @default(0)
+  lockedUntil  DateTime?
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Session {
+  entryPinVerifiedAt DateTime?
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  userAgent   String?
+  ipAddress   String?
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+
+model EntryPin {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  pinHash        String
+  failedAttempts Int      @default(0)
+  lockedUntil    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+
+model PinResetChallenge {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  pinType   String
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}

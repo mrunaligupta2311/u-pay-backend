@@ -2,6 +2,9 @@ import express from "express";
 import helmet from "helmet";
 import cors from "cors";
 import healthRouter from "./routes/health.routes.js";
+import authRouter from "./routes/auth.routes.js";
+import securityRouter from "./routes/security.routes.js";
+import walletRouter from "./routes/wallet.routes.js";
 
 const app = express();
 
@@ -35,6 +38,9 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/health", healthRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/security", securityRouter);
+app.use("/api/wallet", walletRouter);
 
 app.use((_req, res) => {
   res.status(404).json({
@@ -64,7 +70,13 @@ app.use((error, _req, res, _next) => {
     });
   }
 
-  console.error("Unhandled API error:", error.message);
+  console.error("Unhandled API error:", {
+    name: error.name,
+    message: error.message,
+    code: error.code,
+    meta: error.meta,
+    clientVersion: error.clientVersion
+  });
 
   return res.status(500).json({
     error: {
