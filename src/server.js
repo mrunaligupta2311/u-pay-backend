@@ -3,7 +3,7 @@ import app from "./app.js";
 import { prisma } from "./lib/prisma.js";
 
 const port = Number(process.env.PORT || 4000);
-const host = process.env.HOST || "127.0.0.1";
+const host = process.env.HOST || "0.0.0.0";
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   console.error("PORT must be a valid TCP port.");
